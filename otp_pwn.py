@@ -8,6 +8,7 @@ OTP PWN
 import curses
 import string
 import sys
+import binascii
 
 class OTPPwn:
     
@@ -24,6 +25,7 @@ class OTPPwn:
         self.viewOffset= 0
         self.key= "\x00"*self.keylen
         self.keyHistory= [self.key]
+        self.plainHistory= []
         self.rawmode= False
 
     def makePrintable(self, text):
@@ -85,18 +87,42 @@ class OTPPwn:
         self.stdscr.move(self.ymax-1, 0)
         self.stdscr.clrtoeol()
     
-    def updateKey(self, newKey):
+    def updateKey(self, newKey, plain, offset):
         self.keyHistory.append(newKey)
+        self.plainHistory.append((plain, offset))
         self.key= newKey
     
-    def revertKeyChange(self):
+    def revertKeyChange(self, silent= False):
         if len(self.keyHistory) > 1:
             self.keyHistory.pop()
+            self.plainHistory.pop()
             self.key= self.keyHistory[-1]
-            self.printInfo("reverted to last key")
+            if not silent:
+                self.printInfo("reverted to last key")
         else:
             self.printErr("cannot revert key changes, already at initial key")
     
+    def cribdrag(self, forward= True):
+        if len(self.plainHistory) > 0:
+            plain, offset= self.plainHistory[-1]
+            self.revertKeyChange(silent= True)
+            self.applyPlaintext(plain, offset+ (1 if forward else -1))
+
+    def applyPlaintext(self, plain, offset):
+        # calculate resulting key bytes
+        key= ""
+        self.fd.seek(offset)
+        cipher= self.fd.read(len(plain))
+        for i, c in enumerate(cipher):
+            key+= chr(ord(c) ^ ord(plain[i]))
+        
+        # apply changes to stored key
+        newKey= self.key
+        for i, c in enumerate(key):
+            keyIndex= (offset+i) % self.keylen
+            newKey= newKey[:keyIndex]+c+newKey[keyIndex+1:]
+        self.updateKey(newKey, plain, offset)
+
     def processPlain(self, text):
         cmds= text.split(" ")
         if len(cmds) >= 3:
@@ -105,54 +131,31 @@ class OTPPwn:
             elif cmds[0] == "phex" or cmds[0] == "plainhex":
                 try:
                     hexnums= ''.join(cmds[2:])
-                    # check plaintext length
-                    if len(hexnums) % 2:
-                        self.printErr("length of plaintext must be even numbered (hex format)")
-                        return
-
-                    plain= ""
-                    # convert plaintext input from hex to byte
-                    for i in range(0, len(hexnums), 2):
-                        plain+= chr(int(hexnums[i:i+2], 16))
+                    plain= binascii.unhexlify(hexnums)
                 except:
                     self.printErr("could not convert plain hex to bytes")
                     return
-                
             else:
                 return 
             
             try:
                 # get plaintext offset
                 offset= int(cmds[1])
-                
-                if len(plain) > self.keylen:
-                    self.printErr("plaintext longer than key!")
-                    return
-                
-                # calculate resulting key bytes
-                key= ""
-                self.fd.seek(offset)
-                cipher= self.fd.read(len(plain))
-                for i, c in enumerate(cipher):
-                    key+= chr(ord(c) ^ ord(plain[i]))
-                
-                # apply changes to stored key
-                newKey= self.key
-                for i, c in enumerate(key):
-                    keyIndex= (offset+i) % self.keylen
-                    newKey= newKey[:keyIndex]+c+newKey[keyIndex+1:]
-                self.updateKey(newKey)
-                
-                return
             except ValueError:
-                self.printErr("could not convert parameters!")
+                self.printErr("offset must be an integer!")
                 return
+
+            if len(plain) > self.keylen:
+                self.printErr("plaintext longer than key!")
+                return
+            
+            self.applyPlaintext(plain, offset)
+
         else:
             self.printErr("syntax: p | phex [pos] [plaintext (in hex)]")    
         
     def drawStatusBar(self):
         self.clearStatusBar()
-        #statusBar= "MODE: "+ ("original   " if self.rawmode else "key applied")
         statusBar="KEY: " + ' '.join([hex(ord(c))[2:].ljust(2, "0") for c in self.key])
         self.stdscr.addstr(self.ymax-2, 0, statusBar[:self.xmax])    
     
@@ -235,6 +238,12 @@ class OTPPwn:
             # revert key changes
             if input == ord("r") or input == ord("u"):
                 self.revertKeyChange()
+
+            # crib drag
+            if input == ord("c") or input == ord("n"):
+                self.cribdrag()
+            if input == ord("C") or input == ord("N"):
+                self.cribdrag(forward= False)
             
             # scroll view up
             elif input == curses.KEY_UP or input == ord('k'):
