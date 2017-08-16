@@ -245,6 +245,12 @@ class OTPPwn:
             if input == ord("C") or input == ord("N"):
                 self.cribdrag(forward= False)
             
+            # jump to start/end of file
+            if input == ord("g"):
+                self.viewOffset= 0
+            if input == ord("G"):
+                self.viewOffset= self.filesize-self.blocksPerLine * self.keylen
+
             # scroll view up
             elif input == curses.KEY_UP or input == ord('k'):
                 self.viewOffset-= self.keylen* self.blocksPerLine

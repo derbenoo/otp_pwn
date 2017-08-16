@@ -14,8 +14,16 @@ The script spawns an environment similarly to vim. The main window allows you to
 * `k`: scroll up
 * `u`: revert the last key change
 * `m`: switch between applying the current key to the file or displaying the original file
+* `n`: change the offset of the currently entered plaintext by +1
+* `N`: change the offset of the currently entered plaintext by -1
+* `g`: jump to the start of the file
+* `G`: jump to the end of the file
 
-You can switch into the command mode typing `:`. The following commands are available:
+
+
+The `n` and `N` shortcuts enable crib dragging as you can enter a plaintext guess and shift it around the ciphertext until another block decrypts to something useful.
+
+You can switch into the command mode typing `:` which enables the following commands:
 
 * `q`: quit 
 * `p [offset] [plaintext]`: apply a plaintext guess starting at the given offset
