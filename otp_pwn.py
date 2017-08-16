@@ -15,9 +15,10 @@ import sys
 
 class OTPPwn:
     
-    def __init__(self, fd, keylen):
+    def __init__(self, fd, keylen, filesize):
         self.fd= fd
         self.keylen= keylen
+        self.filesize= filesize
         self.blockwidth= 25
         self.infoBarHeight= 3
         self.blockpadding= 3
@@ -29,6 +30,8 @@ class OTPPwn:
         self.key= "\x00"*self.keylen
         self.keyHistory= [self.key]
         self.rawmode= False
+
+        
     
     def makePrintable(self, text):
         return ''.join([x if x in self.printable else "." for x in text])
@@ -59,13 +62,16 @@ class OTPPwn:
         offset= self.viewOffset
         self.fd.seek(offset)
         ylen, xlen= self.pad.getmaxyx()
-        
-        
+        self.pad.clear()
+
         for ypos in range(0, ylen-self.blocklenY, self.blocklenY):
             for xpos in range(0, xlen-self.blocklenX, self.blocklenX):
+                if offset > self.filesize:
+                    return
+
                 text= f.read(self.keylen)
                 
-                # apply XOR key if RAW mode is off
+                # apply XOR key if raw mode is off
                 if not self.rawmode:
                     text= self.xorkey(text)
                 
@@ -132,8 +138,13 @@ class OTPPwn:
                 for i, c in enumerate(cipher):
                     key+= chr(ord(c) ^ ord(plain[i]))
                 
-                offset%= self.keylen
-                newKey= self.key[:offset]+key+self.key[offset+len(plain):]
+                
+                # apply changes to stored key
+                newKey= self.key
+                for i, c in enumerate(key):
+                    keyIndex= (offset+i) % self.keylen
+                    newKey= newKey[:keyIndex]+c+newKey[keyIndex+1:]
+
                 
                 self.updateKey(newKey)
                 
@@ -146,9 +157,9 @@ class OTPPwn:
         
     def drawStatusBar(self):
         self.clearStatusBar()
-        statusBar= "MODE: "+ ("original   " if self.rawmode else "key applied")
-        statusBar+="  |  KEY: " + ' '.join([hex(ord(c))[2:].ljust(2, "0") for c in self.key]) + "  |  "
-        self.stdscr.addstr(self.ymax-2, 0, statusBar)    
+        #statusBar= "MODE: "+ ("original   " if self.rawmode else "key applied")
+        statusBar="KEY: " + ' '.join([hex(ord(c))[2:].ljust(2, "0") for c in self.key])
+        self.stdscr.addstr(self.ymax-2, 0, statusBar[:self.xmax])    
     
     def printErr(self, text):
         self.stdscr.addstr(self.ymax-1, 0, "[!] "+text)
@@ -221,8 +232,10 @@ class OTPPwn:
             if input == ord("m"):
                 if self.rawmode:
                     self.rawmode= False
+                    self.printInfo("MODE: applying key")
                 else:
                     self.rawmode= True
+                    self.printInfo("MODE: original")
             
             # revert key changes
             if input == ord("r"):
@@ -236,17 +249,32 @@ class OTPPwn:
             
             # scroll view down
             elif input == curses.KEY_DOWN or input == ord('j'):
-                self.viewOffset+= self.keylen* self.blocksPerLine
-            
+                if self.viewOffset+ self.keylen* self.blocksPerLine < self.filesize:
+                    self.viewOffset+= self.keylen* self.blocksPerLine
+                else:
+                    self.printInfo("reached end of file.")
+
             self.refresh()
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print "Please provide the encrypted file as a command line argument."
-        sys.exit()
-        
-    filename= sys.argv[1]
-    with open(filename, "r") as f:    
-        otpPwn= OTPPwn(f, 16)
+    # display help
+    if len(sys.argv) == 2 and sys.argv[1] == "-h":
+        print "Usage: otp_pwn.py [encrypted file] [key length]"
+        print ""
+
+    if len(sys.argv) < 2:
+        filename= raw_input("Encrypted file: ")
+    else:
+        filename= sys.argv[1]
+
+    if len(sys.argv) < 3:
+        keylen= int(raw_input("Length of the key: "))
+    else:
+        keylen= int(sys.argv[2])
+
+    with open(filename, "r") as f:   
+        # size of file
+        f.seek(0, 2)
+        filesize= f.tell() 
+        otpPwn= OTPPwn(f, keylen, filesize)
         curses.wrapper(otpPwn.run)
-    
