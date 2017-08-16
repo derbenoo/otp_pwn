@@ -1,17 +1,13 @@
 #!/usr/bin/env python2
 
 '''
-@author: derbenoo
-
 OTP PWN
-
-
+@author: derbenoo
 '''
 
 import curses
 import string
 import sys
-
 
 class OTPPwn:
     
@@ -25,7 +21,6 @@ class OTPPwn:
         self.blocklenX= self.blockwidth+self.blockpadding
         self.blocklenY= self.keylen+self.blockpadding+2
         self.printable= string.digits+string.uppercase+string.lowercase+string.punctuation+" "
-        
         self.viewOffset= 0
         self.key= "\x00"*self.keylen
         self.keyHistory= [self.key]
@@ -141,14 +136,11 @@ class OTPPwn:
                 for i, c in enumerate(cipher):
                     key+= chr(ord(c) ^ ord(plain[i]))
                 
-                
                 # apply changes to stored key
                 newKey= self.key
                 for i, c in enumerate(key):
                     keyIndex= (offset+i) % self.keylen
                     newKey= newKey[:keyIndex]+c+newKey[keyIndex+1:]
-
-                
                 self.updateKey(newKey)
                 
                 return
@@ -241,7 +233,7 @@ class OTPPwn:
                     self.printInfo("MODE: original")
             
             # revert key changes
-            if input == ord("r"):
+            if input == ord("r") or input == ord("u"):
                 self.revertKeyChange()
             
             # scroll view up
@@ -263,7 +255,7 @@ if __name__ == "__main__":
     # display help
     if len(sys.argv) == 2 and sys.argv[1] == "-h":
         print "Usage: otp_pwn.py [encrypted file] [key length]"
-        print ""
+        sys.exit()
 
     if len(sys.argv) < 2:
         filename= raw_input("Encrypted file: ")
