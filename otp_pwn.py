@@ -31,13 +31,16 @@ class OTPPwn:
         self.keyHistory= [self.key]
         self.rawmode= False
 
-        
-    
     def makePrintable(self, text):
         return ''.join([x if x in self.printable else "." for x in text])
     
     def drawBlock(self, y, x, text, offset):
         for i, line in enumerate(self.makeBlock(text, offset)):
+            if i > 1 and i < self.keylen + 2:
+                if ord(self.key[i-2]) != 0 and not self.rawmode:
+                    self.pad.addstr(y+i, x, line, curses.A_BOLD)
+                    continue
+            
             self.pad.addstr(y+i, x, line)
         
     def makeBlock(self, text, offset= 0):
