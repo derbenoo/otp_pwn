@@ -20,7 +20,7 @@ class OTPPwn:
         self.keylen= keylen
         self.filesize= filesize
         self.blockwidth= 25
-        self.infoBarHeight= 3
+        self.infoBarHeight= 4
         self.blockpadding= 3
         self.blocklenX= self.blockwidth+self.blockpadding
         self.blocklenY= self.keylen+self.blockpadding+2
@@ -172,7 +172,7 @@ class OTPPwn:
         self.drawPad()
         self.drawStatusBar()
         self.stdscr.refresh()
-        self.pad.refresh(0,0, 0,0, self.ymax,self.xmax)
+        self.pad.refresh(0,0, 0,0, self.ymax-self.infoBarHeight,self.xmax)
         self.stdscr.move(self.ymax-1, 0)
     
     def dumpResultToFile(self, input):
@@ -197,8 +197,8 @@ class OTPPwn:
         # get window width and height
         self.ymax, self.xmax= stdscr.getmaxyx()
 
-        #initialize analyzer pad
-        self.pad= curses.newpad(self.ymax - self.infoBarHeight, self.xmax)
+        #initialize analyzer pad (show at least one row of blocks)
+        self.pad= curses.newpad(self.ymax if self.ymax > self.blocklenY else self.blocklenY+1, self.xmax)
         self.blocksPerLine= self.xmax / self.blocklenX
         self.refresh()
         
