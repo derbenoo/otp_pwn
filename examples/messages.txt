@@ -1,2 +1,2 @@
-This is some example plaintext that's in encrypted form below.
-Here's another plaintext which is encrypted with the same key.
+Hey, let's see whether you can figure out the plaintext for this message using crib dragging!
+This is another message that was encrypted using the same keystream, which makes it insecure.
