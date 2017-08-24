@@ -13,40 +13,43 @@ import binascii
 class OTPPwn:
     
     def __init__(self, fd, keylen, filesize):
-        self.fd= fd
-        self.keylen= keylen
-        self.filesize= filesize
-        self.blockwidth= 25
-        self.infoBarHeight= 4
-        self.blockpadding= 3
-        self.blocklenX= self.blockwidth+self.blockpadding
-        self.blocklenY= self.keylen+self.blockpadding+2
-        self.printable= string.digits+string.uppercase+string.lowercase+string.punctuation+" "
-        self.viewOffset= 0
-        self.key= "\x00"*self.keylen
-        self.keyHistory= [self.key]
-        self.plainHistory= []
-        self.rawmode= False
+        self.fd= fd # file descriptor for encrypted file
+        self.keylen= keylen # key length
+        self.filesize= filesize # number of bytes in encrypted file
+        self.blockwidth= 25 # width of one ciphertext block
+        self.infoBarHeight= 4 # height of the info bar on the bottom of the screen
+        self.blockpadding= 3 # padding in between ciphertext blocks
+        self.blocklenX= self.blockwidth+self.blockpadding # overall width of a block
+        self.blocklenY= self.keylen+self.blockpadding+2 # overall height of a block
+        self.printable= string.digits+string.uppercase+string.lowercase+string.punctuation+" " # characters to be printed to screen
+        self.viewOffset= 0 # offset into the file
+        self.blockViewOffset= 0 # offset inside a block for blocks that are larger than the screen height, also affects the shown key
+        self.key= "\x00"*self.keylen # key (initialize with zero bytes)
+        self.keyHistory= [self.key] # list of keys for reverting key changes
+        self.plainHistory= [] # history of plaintext for reverting key changes and crib dragging
+        self.rawmode= False # whether or not the current key is applied to the ciphertext blocks
 
     def makePrintable(self, text):
         return ''.join([x if x in self.printable else "." for x in text])
     
-    def drawBlock(self, y, x, text, offset):
-        for i, line in enumerate(self.makeBlock(text, offset)):
+    def drawBlock(self, y, x, text, offset, blockOffset):
+        for i, line in enumerate(self.makeBlock(text, offset, blockOffset)):
             if i > 1 and i < self.keylen + 2:
-                if ord(self.key[i-2]) != 0 and not self.rawmode:
+                if ord(self.key[i-2+blockOffset]) != 0 and not self.rawmode:
                     self.pad.addstr(y+i, x, line, curses.A_BOLD)
                     continue
             
             self.pad.addstr(y+i, x, line)
         
-    def makeBlock(self, text, offset= 0):
+    def makeBlock(self, text, offset= 0, blockOffset= 0):
         # add table header
         res= []
         res.append("POS   | HEX | DEC | STR |")
         res.append("-------------------------")
         
         for i, ch in enumerate(text):
+            if i < blockOffset:
+                continue
             res.append("%5d | %02x  | %3d | %2s  |" % ((i+offset), ord(ch), ord(ch), self.makePrintable(ch)))
         
         return res 
@@ -75,7 +78,7 @@ class OTPPwn:
                 if not self.rawmode:
                     text= self.xorkey(text)
                 
-                self.drawBlock(ypos, xpos, text, offset)
+                self.drawBlock(ypos, xpos, text, offset, self.blockViewOffset)
                 offset+= self.keylen
         
     
@@ -156,7 +159,7 @@ class OTPPwn:
         
     def drawStatusBar(self):
         self.clearStatusBar()
-        statusBar="KEY: " + ' '.join([hex(ord(c))[2:].ljust(2, "0") for c in self.key])
+        statusBar="KEY: " + ' '.join([hex(ord(c))[2:].ljust(2, "0") for c in self.key[self.blockViewOffset:self.blockViewOffset+self.charsPerBlock]])
         self.stdscr.addstr(self.ymax-2, 0, statusBar[:self.xmax])    
     
     def printErr(self, text):
@@ -198,6 +201,7 @@ class OTPPwn:
         #initialize analyzer pad (show at least one row of blocks)
         self.pad= curses.newpad(self.ymax if self.ymax > self.blocklenY else self.blocklenY+1, self.xmax)
         self.blocksPerLine= self.xmax / self.blocklenX
+        self.charsPerBlock= self.ymax - self.infoBarHeight - 2
         self.refresh()
         
         # get user input
@@ -252,17 +256,29 @@ class OTPPwn:
                 self.viewOffset= self.filesize-self.blocksPerLine * self.keylen
 
             # scroll view up
-            elif input == curses.KEY_UP or input == ord('k'):
+            if input == ord('k'):
                 self.viewOffset-= self.keylen* self.blocksPerLine
                 if self.viewOffset < 0:
                     self.viewOffset= 0
+
+            # scroll block up
+            if input == curses.KEY_UP:
+                if self.blockViewOffset > 0:
+                    self.blockViewOffset-= 1
             
             # scroll view down
-            elif input == curses.KEY_DOWN or input == ord('j'):
+            if input == ord('j'):
                 if self.viewOffset+ self.keylen* self.blocksPerLine < self.filesize:
                     self.viewOffset+= self.keylen* self.blocksPerLine
                 else:
                     self.printInfo("reached end of file.")
+
+            # scroll block down
+            if input == curses.KEY_DOWN:
+                if self.blockViewOffset < self.keylen - self.charsPerBlock:
+                    self.blockViewOffset += 1
+                else:
+                    self.printInfo("reached end of block. Use 'j' and 'k' to scroll up/down")
 
             self.refresh()
 

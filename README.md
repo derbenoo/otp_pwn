@@ -18,6 +18,7 @@ The script spawns an environment similarly to vim. The main window allows you to
 * `N`: change the offset of the last entered plaintext by -1
 * `g`: jump to the start of the file
 * `G`: jump to the end of the file
+* `[ARROW UP/ DOWN]`: scroll up/down inside a key block (if blocks are larger than the screen height)
 
 The `n` and `N` shortcuts enable crib dragging as you can enter a plaintext guess and shift it around the ciphertext until another block decrypts to something useful.
 
