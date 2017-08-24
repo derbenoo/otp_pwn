@@ -11,14 +11,15 @@ OTP PWN can assist in the exploitation of the one-time pad (OTP) key reuse vulne
 
 The script spawns an environment similarly to vim. The main window allows you to browse and inspect the contents of the encrypted file using the up and down arrow keys or `k` and `j` respectiveley. The following shortcuts are available:
 * `j`: scroll down
+* `J`: scroll down inside a key block (if blocks are larger than the screen height)
 * `k`: scroll up
+* `K`: scroll up inside a key block
 * `u`: revert the last plaintext guess
 * `m`: switch between showing the orignal file and applying the decryption key
 * `n`: change the offset of the last entered plaintext by +1
 * `N`: change the offset of the last entered plaintext by -1
 * `g`: jump to the start of the file
 * `G`: jump to the end of the file
-* `[ARROW UP/ DOWN]`: scroll up/down inside a key block (if blocks are larger than the screen height)
 
 The `n` and `N` shortcuts enable crib dragging as you can enter a plaintext guess and shift it around the ciphertext until another block decrypts to something useful.
 

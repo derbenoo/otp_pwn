@@ -262,7 +262,7 @@ class OTPPwn:
                     self.viewOffset= 0
 
             # scroll block up
-            if input == curses.KEY_UP:
+            if input == ord('K'):
                 if self.blockViewOffset > 0:
                     self.blockViewOffset-= 1
             
@@ -274,11 +274,11 @@ class OTPPwn:
                     self.printInfo("reached end of file.")
 
             # scroll block down
-            if input == curses.KEY_DOWN:
+            if input == ord('J'):
                 if self.blockViewOffset < self.keylen - self.charsPerBlock:
                     self.blockViewOffset += 1
                 else:
-                    self.printInfo("reached end of block. Use 'j' and 'k' to scroll up/down")
+                    self.printInfo("reached end of block.")
 
             self.refresh()
 
